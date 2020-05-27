@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 
 use App\User;
 use App\Page;
@@ -46,9 +47,15 @@ class PageController extends Controller
      */
     public function store(Request $request)
     {
+
+      // Posso anche scegliere di non mettere i dati della request in una variabile
+      $data = $request->all();
+      // Posso anche scegliere di non mettere i dati della request in una variabile
+
       //dd($request->all());
-      //validazione
-      $validator = Validator::make($request->all(), [
+
+      //-------------------validazione-------------------
+      $validator = Validator::make($data, [
           'title' => 'required|max:200',
           'body' => 'required',
           'category_id' => 'required|exists:categories,id',
@@ -61,9 +68,28 @@ class PageController extends Controller
       if ($validator->fails()) {
           return redirect()->route('admin.pages.create')
           ->withErrors($validator)
-              ->withInput();
+          ->withInput();
       }
-      dd('ok');
+      //-------------------validazione-------------------
+
+      // Instanzio, "fillo" e salvo la nuova instanza con i dati della request
+      $page = new Page;
+      $data['slug'] = Str::slug($data['title'], '-');
+      $data['user_id'] = Auth::id();
+      $page->fill($data);
+      $saved = $page->save();
+      // Instanzio, "fillo" e salvo la nuova instanza con i dati della request
+
+      if (!$saved) {
+        dd('Qualcosa è andato stprto!');
+      }
+
+      // Ricordarmi di compilare anche la tabella pivot, ma sempre dopo aver "fillato" ovviamente
+      $page->tags()->attach($data['tags']);
+      $page->photos()->attach($data['photos']);
+      // Ricordarmi di compilare anche la tabella pivot, ma sempre dopo aver "fillato" ovviamente
+
+      return redirect()->route('admin.pages.show', $page->id);
     }
 
     /**
@@ -74,7 +100,11 @@ class PageController extends Controller
      */
     public function show($id)
     {
-        //
+        // Con FindOrFail gestisce da solo la 404 senza doverlo fare a mano
+        $page = Page::findOrFail($id);
+        // Con FindOrFail gestisce da solo la 404 senza doverlo fare a mano
+
+        return view('admin.pages.show', compact('page'));
     }
 
     /**
